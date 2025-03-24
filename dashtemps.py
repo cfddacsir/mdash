@@ -5,16 +5,17 @@ CODENAME="dashtemps.py"
 __doc__='''
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  {CODENAME}
- @author: Daniel A. Collins dac@dacdynamics.com, daniel.collins@quest-global.com
+ @author: Daniel A. Collins 
 
  boot up this dashboard python {CODENAME}
  then open browser at https://127.0.0.1:8051 
- 
+
+@last:   2025-03-24-1025t 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 '''
 __version__='''
 @init:   2025-03-05-1436t
-@last:   2025-
+@last:   2025-03-24-1025t
 '''
 ###############################################################################
 

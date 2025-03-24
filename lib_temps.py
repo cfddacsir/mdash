@@ -7,14 +7,13 @@ __doc__='''
 [-figshow] show figures of the monitored values as they are generated
 [-method <int>] select what method for adjusting y-scaling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+@last:   2025-03-24-1025t 
+
 '''
 __version__='''
 @author: Daniel A. Collins dac@dacdynamics.com, daniel.collins@quest-global.com
+@last:   2025-03-24-1025t 
 Created  Mon Feb 24 11:06:32 2025
-@last:   2025-02-26-0029t
-@last:   2025-02-26-1342t
-@last:   2025-02-26-1810t
-@last:   2025-03-05-1436t
 '''
 SIGNAL_LIST={
    0:  'K' , 
