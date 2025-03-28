@@ -551,8 +551,6 @@ def serve_layout():
       html.Div([
         html.Div([
 
-            INP['radio_osshell'],  ## 
-            dcc.Store('set_shell', storage_type='session', data='string'),
             INP['btn_newtestdir'], ##  INP[4] ,
             #html.Div( [""], 
             #    style={'width': '45px'}),
@@ -605,6 +603,7 @@ def serve_layout():
                 # INP['radio_files'], ## INP[3] ,
             ## select_signal
                 HTX[21] , INP['sel_signal'], ## INP[2]  ,        
+
                 
 
             ],style={
@@ -615,6 +614,47 @@ def serve_layout():
         ),
         ]
     )
+    import dash_bootstrap_components as dbc
+    MENU_1 = html.Div(
+      [ 
+        dbc.Row(
+          [
+            dbc.Col(
+                html.Div('btn_newtestdir',
+                         width={'size':6, 'offset':3},
+                )
+            ),                
+            dbc.Col(
+                html.Div('btn_monitortemp',
+                         width={'size':6, 'offset':3},
+                )
+            ),
+            dbc.Col(
+                html.Div('btn_stopmonitor',
+                         width={'size':6, 'offset':3},
+                )
+            ),
+            dbc.Col(
+                html.Div('btn_clear_stop',
+                         width={'size':6, 'offset':3},
+                )
+            ),
+          ],
+          align='start',
+          
+        )
+      ]  
+    )
+        
+        
+    MENU_CFG= \
+        html.div(
+            
+            
+            INP['radio_osshell'],  ## 
+            dcc.Store('set_shell', storage_type='session', data='string'),
+        )
+                
     return html.Div(children=[ 
     
         html.Table([

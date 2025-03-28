@@ -7,38 +7,15 @@ __doc__='''
 [-figshow] show figures of the monitored values as they are generated
 [-method <int>] select what method for adjusting y-scaling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-@last:   2025-03-24-1025t 
-
 '''
 __version__='''
 @author: Daniel A. Collins dac@dacdynamics.com, daniel.collins@quest-global.com
-@last:   2025-03-24-1025t 
 Created  Mon Feb 24 11:06:32 2025
+@last:   2025-02-26-0029t
+@last:   2025-02-26-1342t
+@last:   2025-02-26-1810t
+@last:   2025-03-05-1436t
 '''
-SIGNAL_LIST=[
-    'aoss-0' , 
-    'cpu-0-0' , 
-    'cpu-0-1' , 
-    'cpu-0-2' , 
-    'cpu-0-3' , 
-    'gpuss-0' , 
-    'gpuss-1' , 
-    'nspss-0' , 
-    'nspss-1' , 
-    'nspss-2' , 
-    'video' , 
-    'ddr' , 
-    'camera-0' , 
-    'camera-1' , 
-    'mdmss-0' , 
-    'pm8150_tz' , 
-    'therm-soc-usr' , 
-    'skin-sensor' , 
-    'skin-sensor-o' , 
-    'therm-quiet-usr' , 
-    'therm-rf-usr' , 
-    'therm-in-temp-usr' ,
-]
 SIGNAL_LIST={
    0:  'K' , 
    1:  'time' , 
@@ -73,7 +50,7 @@ if 1: # MANUAL_PATH
     # MANUAL_PATH = r'/Users/dac/qlab/testing/Q0D009';
     
     
-    finp = "watch_temps.csv";
+    finp = "watch_temp.csv";
 SKIP_LIST = [  19, 25 ];
 OFFSET = [ True, True ] ;
 inppath = None; 
@@ -165,63 +142,9 @@ from   scipy import interpolate
 
 # %matplotlib inline # uncomment only in jupyter
 FSS = os.sep;
-
-###############################################################################
-# %% determing OS of host
-def host_os( ):   
-    '''
-    arg:  None
-    ret: FSS <str> file-separator based on the operating system.
-         SH  <str> shell to use for OS
-             SH= sh for shell (bash)
-             SH= pw for powershell (windows/others)
-    '''
-    #import unicode; 
-    import platform; p = platform.uname();
-    if p.system == 'Windows': 
-        FS  =  str('\u005c') ;  ## == "\" #if system is Windows:
-        SH  =  str('ps1') ;
-    else: 
-        FS  =  str('\u002f') ;  ## == "/"  # if NOT windows
-        SH  =  str('bsh' ) ;
-    FSS =  str( 1*FS ) ;
-    return FSS, SH ;
-
-
-FSS = os.sep; ## osfss();
-
 ###############################################################################
 # %% Reading Inputs, Files,  
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def searchdir101( search_dir, SHOW=False  ):
-    import os 
-    pw = os.getcwd();
-    os.chdir(search_dir);
-    files = filter(os.path.isdir, os.listdir(search_dir));
-    #files = [os.path.join(search_dir, f) for f in files] # add path to each file
-    files = [os.path.join( 0*search_dir, "", f) for f in files] ;# add path to each file
-    files.sort(key=lambda x: os.path.getmtime(x));
-    #if SHOW: print ( files );
-    if '.DS_Store' in files:
-        files.remove('.DS_Store')
-    os.chdir(pw);
-    return files ;
-
-# %% searching dir    
-def searchdir( search_dir, SHOW=False  ):
-    import os 
-    pw = os.getcwd();
-    os.chdir(search_dir);
-    files = filter(os.path.isdir, os.listdir(search_dir));
-    #files = [os.path.join(search_dir, f) for f in files] # add path to each file
-    files = [os.path.join( 0*search_dir, "", f) for f in files] ;# add path to each file
-    files.sort(key=lambda x: os.path.getmtime(x));
-    #if SHOW: print ( files );
-    if '.DS_Store' in files:
-        files.remove('.DS_Store')
-    os.chdir(pw); 
-    return files ;
-
 def getArgs( EXE ):
     '''
     EXE = getArgs(EXE) ; 
@@ -286,13 +209,7 @@ def DictNames( names ):
         namecol[v] = k;
     return colname, namecol;
 
-def getFiles(inppath, nfdef = 1,
-             LASTFILE=True,
-             ALLFILES=False,
-             KW_BEG='watch_temp', 
-             KW_END='csv', 
-             SHOW=True , 
-    ):
+def getFiles(inppath, nfdef = 1, KW_BEG='watch_temp', KW_END='csv' ):
     inpfile = [];
     for f in listdir(inppath):
         if (KW_BEG in f):
@@ -300,45 +217,34 @@ def getFiles(inppath, nfdef = 1,
               if ('stat' not in f):
                 inpfile.append( inppath +FSS + f)
     NFILES  = len(inpfile);
-    if SHOW: print ( f'path : {inppath} ')
-    ## if SHOW: print ( f'files found: {inpfile} ')
+    print ( f'path : {inppath} ')
+    print ( f'files found: {inpfile} ')
     inpfile = inpfile[NFILES-nfdef:NFILES];
     #if PSH[2]:
     # print(Selectinpfile);
-    if SHOW: print ( f'files found: {inpfile} ')
+    print ( f'files found: {inpfile} ')
+    if type( inpfile) == list:
+          inpfile = inpfile[-1];  ## get last one found
+    else: inpfile = str( inpfile) ; 
     
-    if LASTFILE:    
-        if type( inpfile) == list:
-              inpfile = inpfile[-1];  ## get last one found
-        else: inpfile = str( inpfile) ; 
-        if SHOW: print( f' Using Last File in {inppath}: {inpfile} ')
-
-    if ALLFILES:
-        infile = list ( inpfile[NFILES-nfdef:NFILES] ); 
-        if SHOW: print( f' Using All Files in {inppath} ')
     return inpfile ;
 
 def getdf(inpfile):
     DF = pd.concat(map(pd.read_csv, inpfile));
     return DF
 
-def get_dfread( inpfile=None, inppath=None, 
-               SKIP_LIST=SKIP_LIST, 
-               SHOW = False, SHOWFILES=True 
-    ):
-    #if innpfile == None: pass;
-        # inpfile = getFiles(inppath, 
-        #                          nfdef = 1, 
-        #                          KW_BEG='watch_temp', 
-        #                          KW_END='csv' ,
-        #                          SHOW=SHOWFILES,
-        # )
-    if type(inpfile ) == str:
-        dfread = pd.read_csv( str( inpfile ), index_col=False  
-        );
-    else:
-        dfread = getdf( inpfile );
-        
+def get_dfread( inppath, SKIP_LIST=SKIP_LIST, SHOW = False ):
+ 
+    inpfile = getFiles(inppath, 
+                             nfdef = 1, 
+                             KW_BEG='watch_temp', 
+                             KW_END='csv' 
+    )
+    if type( inpfile) ==list:
+             inpfile = inpfile[-1]; 
+    else:    inpfile = str( inpfile) ; 
+    dfread = pd.read_csv( str( inpfile ), index_col=False  
+    );
     if SHOW:
         print( dfread.head ) ;
         print( dfread.columns ) ;
@@ -1134,210 +1040,210 @@ def plotexts( dfcor, grouping,
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ###############################################################################
 # %% MAIN EXECUTE
-# #==============================================================================
-# if __name__ == '__main__': 
+#==============================================================================
+if __name__ == '__main__': 
 
-#   if 0:
-#     pass ;
-#     EXE = getArgs( EXE );
-#     if EXE['doc']: 
-#           print( __doc__, end='\n\n');
-#           # print( __version__, end='\n\n');
-#           # print( __usage__, end='\n\n')
-#           exit();
-#     # #if PSH[1]: showkeys( EXE );
-#     #  PSH = set_verbosity( EXE['psh'] , SHOW=False);
-#       #PSH = set_verbosity( EXE['psh'] , SHOW=True);   
+  if 0:
+    pass ;
+    EXE = getArgs( EXE );
+    if EXE['doc']: 
+          print( __doc__, end='\n\n');
+          # print( __version__, end='\n\n');
+          # print( __usage__, end='\n\n')
+          exit();
+    # #if PSH[1]: showkeys( EXE );
+    #  PSH = set_verbosity( EXE['psh'] , SHOW=False);
+      #PSH = set_verbosity( EXE['psh'] , SHOW=True);   
 
-#   if 0: #<< input path  >>========================================   
-#     pass ;
-#     if inppath==None : inppath = os.getcwd();
-#     if (EXE['inp'] ) == None: pass;
-#     else: 
-#      if len( EXE['inp'] ) >0:
-#       inppath =EXE['inp'];
-#       if type( EXE['inp'])==list: inppath=EXE['inp'][0] 
-#   #    inppath = EXE['inp'];  
-#       if PSH[1]: print ( os.listdir() )
-#       #if PSH[0]:
-#       print(' current path is {} '.format(inppath));
-#       print(' Inppath: {} '.format(inppath));
+  if 0: #<< input path  >>========================================   
+    pass ;
+    if inppath==None : inppath = os.getcwd();
+    if (EXE['inp'] ) == None: pass;
+    else: 
+     if len( EXE['inp'] ) >0:
+      inppath =EXE['inp'];
+      if type( EXE['inp'])==list: inppath=EXE['inp'][0] 
+  #    inppath = EXE['inp'];  
+      if PSH[1]: print ( os.listdir() )
+      #if PSH[0]:
+      print(' current path is {} '.format(inppath));
+      print(' Inppath: {} '.format(inppath));
       
-# #==============================================================================
+#==============================================================================
 
-#   if 1: 
-#     inppath = r'/Users/dac/qlab/testing/Q0B006';
-#     inppath = MANUAL_PATH
-# #   inpfile = getFiles(inppath);
+  if 1: 
+    inppath = r'/Users/dac/qlab/testing/Q0B006';
+    inppath = MANUAL_PATH
+#   inpfile = getFiles(inppath);
 
-#     dfread, inpfile = get_dfread( inppath, SHOW=False );
-#     inpbase = inpfile.rstrip( ".csv")
+    dfread, inpfile = get_dfread( inppath, SHOW=False );
+    inpbase = inpfile.rstrip( ".csv")
 
-#     dfmain = dfread.copy();
+    dfmain = dfread.copy();
 
-# # In[]:
-#   if 1:  ## *** generate dfcor 
-#     # *************************************************************************
-#     # Main feature of correcting the registers 
-#     #   out = smoothf( inp * 0.01 ) - 273.15 
-#     #   note that smoothf is a noise-filtering smooth function 
-#     #   cancel the function by changing 
-#     #   CORRECTION=[True,True,True] --> CORRECTION=[True,True,False]
-#     dfcor   = build_dfcor( 
-#                 #dfmain.iloc[:,thisgroup], 
-#                 dfmain,
-#                 ## <deprecated> CORRECTION=CORRECTORS, 
-#                 ## <deprecated> CORRECTION=[True,True,True], 
-#                 ## <deprecated> CORRECTION=[True,True,False], ## will cancel the noise-filter
-#                 APPLYSMOOTH=EXE['Smooth'],
-#                 ## <deprecated> SHOW=False 
-#             );    
-#     # print( dfcor.head() )
-#     # *************************************************************************
+# In[]:
+  if 1:  ## *** generate dfcor 
+    # *************************************************************************
+    # Main feature of correcting the registers 
+    #   out = smoothf( inp * 0.01 ) - 273.15 
+    #   note that smoothf is a noise-filtering smooth function 
+    #   cancel the function by changing 
+    #   CORRECTION=[True,True,True] --> CORRECTION=[True,True,False]
+    dfcor   = build_dfcor( 
+                #dfmain.iloc[:,thisgroup], 
+                dfmain,
+                ## <deprecated> CORRECTION=CORRECTORS, 
+                ## <deprecated> CORRECTION=[True,True,True], 
+                ## <deprecated> CORRECTION=[True,True,False], ## will cancel the noise-filter
+                APPLYSMOOTH=EXE['Smooth'],
+                ## <deprecated> SHOW=False 
+            );    
+    # print( dfcor.head() )
+    # *************************************************************************
     
-# #==============================================================================
-# ##if __name__ == '__main__': 
-#   if ProcesGroups: ## defining the GROUPINGS and SELGROUPS 
-#     GROUPINGS = {
-#         0 : list(range( 2, 24, 1)) ,
-#         1 : list(range( 2, 12, 1)) ,
-#         2 : list(range(18, 24, 1)) ,
-#         3 : [ 12, 13, 14, 15 ] ,
-#         4 : [ 2, 19, 20 ] ,
-#         5 : [ 3,4,5,6 ] ,
+#==============================================================================
+##if __name__ == '__main__': 
+  if ProcesGroups: ## defining the GROUPINGS and SELGROUPS 
+    GROUPINGS = {
+        0 : list(range( 2, 24, 1)) ,
+        1 : list(range( 2, 12, 1)) ,
+        2 : list(range(18, 24, 1)) ,
+        3 : [ 12, 13, 14, 15 ] ,
+        4 : [ 2, 19, 20 ] ,
+        5 : [ 3,4,5,6 ] ,
     
-#     }
-#     SELGROUPS = [ 1 , 2, 3 ]
-#     SELGROUPS = [ 1, 2, 3 ]
-#     SELGROUPS = [ 4,5,1,3,2,0 ]
+    }
+    SELGROUPS = [ 1 , 2, 3 ]
+    SELGROUPS = [ 1, 2, 3 ]
+    SELGROUPS = [ 4,5,1,3,2,0 ]
     
-#     SELGROUPS = EXE['SELGROUPS']
+    SELGROUPS = EXE['SELGROUPS']
 
-#   #==============================================================================  
-#     for thisgroupsel in SELGROUPS :
-#         print( f"- processing Group Set # {thisgroupsel} ")
-#         thisgroup = GROUPINGS.get(  thisgroupsel  );
-#         print( f"   this groupset includes these signals : ")
+  #==============================================================================  
+    for thisgroupsel in SELGROUPS :
+        print( f"- processing Group Set # {thisgroupsel} ")
+        thisgroup = GROUPINGS.get(  thisgroupsel  );
+        print( f"   this groupset includes these signals : ")
         
-#         for c in dfmain.columns[thisgroup]:
-#             print( f"\t  {c}  " )
+        for c in dfmain.columns[thisgroup]:
+            print( f"\t  {c}  " )
      
-#         # ***************************************************************************
-#         ## In[]: Plotting the Groups 
-#         plt.clf();  
-#         if ProcessGroupPlot: ## graph with no scaling 
+        # ***************************************************************************
+        ## In[]: Plotting the Groups 
+        plt.clf();  
+        if ProcessGroupPlot: ## graph with no scaling 
             
-#           if PlotNoScaling: ## plot first graph with NO SCALING
-#                 selmethod = 0 ;
-#                 # if PlotScaling: 
-#                     ## plot second graph with scaling method scalingmethod=EXE['method']
-#                 plt.clf(); 
-#                 fig, ax1  = plt.subplots(
-#                             1, 1,
-#                             sharex=True,
-#                             dpi=240.0,
-#                             # figsize=[ 8, 8 ],
-#                             tight_layout=True,
-#                  #          figsize=( 1.25 * 4.150, 1.25 * 4.800 ),
-#                             ## https://matplotlib.org/stable/api/figure_api.html
-#                             ## figsize2-tuple of floats, default: rcParams["figure.figsize"] (default: [6.4, 4.8])
-#                             ## Figure dimension (width, height) in inches.
-#                             #margin_top=0.15,
-#                 );
-#                 scalingmethod = 0
+          if PlotNoScaling: ## plot first graph with NO SCALING
+                selmethod = 0 ;
+                # if PlotScaling: 
+                    ## plot second graph with scaling method scalingmethod=EXE['method']
+                plt.clf(); 
+                fig, ax1  = plt.subplots(
+                            1, 1,
+                            sharex=True,
+                            dpi=240.0,
+                            # figsize=[ 8, 8 ],
+                            tight_layout=True,
+                 #          figsize=( 1.25 * 4.150, 1.25 * 4.800 ),
+                            ## https://matplotlib.org/stable/api/figure_api.html
+                            ## figsize2-tuple of floats, default: rcParams["figure.figsize"] (default: [6.4, 4.8])
+                            ## Figure dimension (width, height) in inches.
+                            #margin_top=0.15,
+                );
+                scalingmethod = 0
 
-#                 fig, ax1 = mplot(    dfcor, thisgroup, fig, ax1, METHOD=selmethod,  );
-#                 fig, ax1 = plotexts( dfcor, thisgroup, fig, ax1, METHOD=selmethod,  );
-#                 #plotexts( dfcor, showmodes=False ,           holdyhow=True, METHOD=0,  );
-#                 t = f'Group {thisgroupsel}' ;
-#                 #plt.suptitle( f'Group {thisgroupsel}', fontsize=14 )
-#                 plt.title( ' No scaling method  (0) ', fontsize=8, fontstyle='italic', ) ;
-#                 plt.legend( fontsize=6.5, ncols=3 );
-#                 plt.xlabel(' Time (sec) ') ;
-#                 plt.ylabel(' Temperature (*C)');
-#                 if EXE['figsave']: #if FIGSAVE:
+                fig, ax1 = mplot(    dfcor, thisgroup, fig, ax1, METHOD=selmethod,  );
+                fig, ax1 = plotexts( dfcor, thisgroup, fig, ax1, METHOD=selmethod,  );
+                #plotexts( dfcor, showmodes=False ,           holdyhow=True, METHOD=0,  );
+                t = f'Group {thisgroupsel}' ;
+                #plt.suptitle( f'Group {thisgroupsel}', fontsize=14 )
+                plt.title( ' No scaling method  (0) ', fontsize=8, fontstyle='italic', ) ;
+                plt.legend( fontsize=6.5, ncols=3 );
+                plt.xlabel(' Time (sec) ') ;
+                plt.ylabel(' Temperature (*C)');
+                if EXE['figsave']: #if FIGSAVE:
                     
-#                     figname = inppath + os.sep + \
-#                         f"Gr{thisgroupsel}_Sm{scalingmethod}" +\
-#                         ".png";
-#                     print( f"saving figure ... {figname}")
-#                     plt.savefig( 
-#                        figname
-#                     );
-#                 if EXE['figshow']: #if FIGSHOW:
-#                     plt.show() ;
+                    figname = inppath + os.sep + \
+                        f"Gr{thisgroupsel}_Sm{scalingmethod}" +\
+                        ".png";
+                    print( f"saving figure ... {figname}")
+                    plt.savefig( 
+                       figname
+                    );
+                if EXE['figshow']: #if FIGSHOW:
+                    plt.show() ;
     
    
-# ###############################################################################
-# # %% In[]:  
-# if 1:    
-#   SET2PROCESS = [
-#                  'cpu-0-0',
-#                  'skin-sensor'
-#                  ]  
-#   if ProcessDerivatives: ##
-#     for fname in SET2PROCESS:
+###############################################################################
+# %% In[]:  
+if 1:    
+  SET2PROCESS = [
+                 'cpu-0-0',
+                 'skin-sensor'
+                 ]  
+  if ProcessDerivatives: ##
+    for fname in SET2PROCESS:
         
-#         fig, ax1 = analyze_derivative( dfcor, fname , 
-#                    AddInflections=OPTS['AddInflections'],
-#                    ShowSecInflections=False,
-#                    );
+        fig, ax1 = analyze_derivative( dfcor, fname , 
+                   AddInflections=OPTS['AddInflections'],
+                   ShowSecInflections=False,
+                   );
           
-#         ex = 45;
-#         ey = intnpxy( dfcor['time'], dfcor[ fname] , ex )
-#         ax1.scatter( ex, ey, s=30, marker='*' , color='b' )
-#         plt.show()
+        ex = 45;
+        ey = intnpxy( dfcor['time'], dfcor[ fname] , ex )
+        ax1.scatter( ex, ey, s=30, marker='*' , color='b' )
+        plt.show()
     
-#     #plt.scatter( dfmain['time'],dfmain[fname ] )
-#     #plt.show()
-#     #plt.scatter( dfcor ['time'],dfcor [fname ] )
-#     #plt.show()
+    #plt.scatter( dfmain['time'],dfmain[fname ] )
+    #plt.show()
+    #plt.scatter( dfcor ['time'],dfcor [fname ] )
+    #plt.show()
 
 
 
-# # %%
-# #for k,v in SIGNAL_LIST:
-# for k in range( 3, 23 ):
-# #if 1:
-#     fname = SIGNAL_LIST.get( k )
-#     plt.clf();    
-#     #fname = 'skin-sensor'
-#     dy =find_derivatives( 
-#         dfcor['time'],dfcor[ fname ] , 
-#         kgap=2, kinc=1, smoother=True 
-#     );
-#     xr1, yr1 = get_roots( dy, order=1,
-#                     xinit=3,
-#                     guessjump=3, 
-#                     nextjump=20,
-#                      );
-#     xroots = find_multiroot(dy, order=1, 
-#                 xinit=3,
-#                 guessjump=0.5, 
-#                 nextjump=20,
-#                 #xupper=800,
-#                 maxtry=15,
-#     );
-#     xroots.sort(); #xroots = sorted(xroots)
-#     pxx = 0 
-#     pyy = 0 
-#     LOCO = list();
-#     for k, ex in enumerate( xroots ):
-#         px, py, lo, lc, mc = eval_locality( ex , dy) 
-#         dex = px - pxx  
-#         dey = py - pyy
-#         LOCO.append([ px,py,lo,lc, mc, dex, dey ] )
-#         pxx = px
-#         pyy = py
-#         plt.scatter( px, py, s=30, marker=mc )
+# %%
+#for k,v in SIGNAL_LIST:
+for k in range( 3, 23 ):
+#if 1:
+    fname = SIGNAL_LIST.get( k )
+    plt.clf();    
+    #fname = 'skin-sensor'
+    dy =find_derivatives( 
+        dfcor['time'],dfcor[ fname ] , 
+        kgap=2, kinc=1, smoother=True 
+    );
+    xr1, yr1 = get_roots( dy, order=1,
+                    xinit=3,
+                    guessjump=3, 
+                    nextjump=20,
+                     );
+    xroots = find_multiroot(dy, order=1, 
+                xinit=3,
+                guessjump=0.5, 
+                nextjump=20,
+                #xupper=800,
+                maxtry=15,
+    );
+    xroots.sort(); #xroots = sorted(xroots)
+    pxx = 0 
+    pyy = 0 
+    LOCO = list();
+    for k, ex in enumerate( xroots ):
+        px, py, lo, lc, mc = eval_locality( ex , dy) 
+        dex = px - pxx  
+        dey = py - pyy
+        LOCO.append([ px,py,lo,lc, mc, dex, dey ] )
+        pxx = px
+        pyy = py
+        plt.scatter( px, py, s=30, marker=mc )
         
-#     plt.plot( dfcor['time'], dfcor[fname]) ;
-#     plt.title( f' {fname} ', fontsize=14, )
+    plt.plot( dfcor['time'], dfcor[fname]) ;
+    plt.title( f' {fname} ', fontsize=14, )
     
-#     plt.show() ;
-#     dLOCO = pd.DataFrame( 
-#         data=LOCO, columns=['x','y','lm','lc','mc','dx','dy']
-#     );
+    plt.show() ;
+    dLOCO = pd.DataFrame( 
+        data=LOCO, columns=['x','y','lm','lc','mc','dx','dy']
+    );
     
 
 ###############################################################################
