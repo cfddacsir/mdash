@@ -2,15 +2,15 @@
 ##=========================================================
 ## monitortemp.sh
 ## Daniel.Collins@Quest-global.com
-## @last:   2025-03-24-1025t 
-## 2025-02-21 #initial
+## @last:   2025-03-28-1048t 
+## #init:   2025-02-21 
 ##=========================================================
 CODENAME="monitortemp.sh" ;
 ##=========================================================
 # SETTING PARAMETER DEFAULT VALUES 
- LIMITUHR=600
+ CTRLIMIT=600
  FTIME="./watch_temps.csv"
- UHR_INCR=1; ## increment for pseudoclock
+ CTR_INCR=1; ## increment for pseudoclock
  uhr=0; ## initialize pseudoclock 
  BEG=(`date +%Y%m%d-%H%M%S`);
  REC_PATH=$(pwd);
@@ -24,11 +24,11 @@ REC_HEADER='k,TIME,aoss-0,cpu-0-0,cpu-0-1,cpu-0-2,cpu-0-3,gpuss-0,gpuss-1,nspss-
 ##=========================================================
 doc_usage(){
  printf "#=====================================================================#
- ${CODENAME}  [help] [ -max $LIMITUHR ] [-p ]
+ ${CODENAME}  [help] [ -max $CTRLIMIT ] [-p ]
     -rec <str>   :  path where output shall be recorded
                     [def $REC_PATH]
     -h,help      :  show usage info
-    -max <int>   :  max nr of steps to record <def: $LIMITUHR >
+    -max <int>   :  max nr of steps to record <def: $CTRLIMIT >
     -proof       :  1 (then don't use adb cmds)
 
  main function will STOP if ./STOP appears in local path or $REC_PATH/STOP
@@ -39,12 +39,14 @@ doc_usage(){
 
 ##=========================================================
 function main(){ 
-  LIMITUHR=$1 ;
+  CTRLIMIT=$1 ;
   REC_PATH=$2 ;
   PROOFING=$3 ;
   TIMER=1 ;
   if [ -z $REC_PATH ] ; then REC_PATH=$(pwd); fi
-  FTIME="${REC_PATH}/watch_temps.csv" ;
+  BEG=(`date +%Y-%-m%d-%H-%M-%S`);
+  BEG=(`date +%Y%m%d-%H%M%S`);
+  FTIME="${REC_PATH}/watch_temps_${BEG}.csv" ;
 
   # hints
     # "/sys/devices/virtual/thermal/thermal_zone${i}"
@@ -68,26 +70,25 @@ function main(){
   
   ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   while true; do
-    if [[ $uhr -gt ${LIMITUHR} ]] ; then break; fi 
-      uhr=$(( uhr + UHR_INCR  ));
+    if [[ $ctr -gt ${CTRLIMIT} ]] ; then break; fi 
     
-    # if [ -n $STOPCMD ] ; then printf "\t  STOPPING!  \n" ; 
-    #   break;
-    # fi
+    ctr=$(( ctr + CTR_INCR ));
+    
     if [ -f ${REC_PATH}/$STOPCMD ] ; then printf "\t  STOPPING!  \n" ; 
       break;
     fi
 
-    printf "\n%d,%s," $uhr $(date $DTFORM) |tee -a $FTIME ;
+    #
+    G=$(printf "%d,%s," $ctr $(date $DTFORM));
     for z in `seq 0 23` ; do
       if [ $PROOFING == 1 ]; then 
         E="21000";
       else
         E=$(adb shell cat /sys/devices/virtual/thermal/thermal_zone${z}/temp) ;
       fi 
-      printf "${E}," |tee -a $FTIME ;
+      G="$G,$E";
     done
-    
+    printf "\n${G}" |tee -a $FTIME ;
     sleep ${TIMER}
   done
 } ## EO main
@@ -109,7 +110,7 @@ while [[ ${#@} -gt 0 ]] ; do
     ;;
     -max)
       shift;
-      LIMITUHR=$1
+      CTRLIMIT=$1
       do_main=1
     ;;
     -h|--h|-help|--help|h|help)
@@ -124,10 +125,14 @@ done
 ##=========================================================
 
 if [ $do_main -eq 1 ]; then
-  printf " Running with LIMITUHR of ${LIMITUHR} \n"| tee -a $FLONG 
-  printf " Running with REC_PATH of ${REC_PATH} \n"| tee -a $FLONG 
-  printf " PROOFING of ${PROOFING} \n"| tee -a $FLONG 
-  ( main $LIMITUHR $REC_PATH $PROOFING ) ;
+  printf "
+  Running with ...
+    SHELL    = bsh    
+    CODENAME = $CODENAME
+    CTRLIMIT = ${CTRLIMIT} 
+    REC_PATH = ${REC_PATH} 
+    PROOFING = ${PROOFING} " | tee -a $FLONG 
+  ( main $CTRLIMIT $REC_PATH $PROOFING ) ;
   #cp -pvf $FTIME ${FTIME%.csv}_$BEG.csv ;
   mv -v ${REC_PATH}/${FTIME} ${REC_PATH}/${FTIME%.csv}_$BEG.csv ;
 fi 

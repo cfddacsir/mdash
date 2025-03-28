@@ -10,7 +10,8 @@ __doc__='''
  boot up this dashboard python {CODENAME}
  then open browser at https://127.0.0.1:8051 
 
-@last:   2025-03-24-1025t 
+## @last:   2025-03-28-1048t 
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 '''
 __version__='''
@@ -18,8 +19,12 @@ __version__='''
 @last:   2025-03-24-1025t
 '''
 ###############################################################################
-
 # %% CFG 
+SIZE = {
+    'btn'   : 15 ,
+    'drop'  : 15 ,
+    'radio' : 15 ,
+}
 CFG = {
 ' ' : 0,
 'MAIN_PATH'     : r'/Users/dac/qlab/testing/' ,
@@ -27,8 +32,10 @@ CFG = {
 'VERB'          : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
 'test-prefix'   : 'B' ,
 'new-prefix'    : 'B' ,
-'REC_LIMIT'     :  60,
+'REC_LIMIT'     :  61, #  60,
 'proofing'      :  1, ## set to 1 if adb is not connected
+'def_osshell'   : 'Bash Shell (Mac/Linux)',
+'init_shell'    : 'bsh',
 };
 
 DEF = CFG[' '] ; ## example
@@ -123,7 +130,7 @@ import dash;
 from   dash import dcc;
 #from dash import dbc 
 from   dash import html;
-from   dash.dependencies import Input, Output
+from   dash.dependencies import Input, Output 
 import plotly.graph_objects as go;
 import plotly.express as px;
 from   dash import ctx, callback
@@ -133,22 +140,35 @@ from   dash import ctx, callback
 #import post_temps as ptt ;
 import lib_temps as ptt ;
 
-###############################################################################
+######################################################################
+# %% Dashboard 
+# Create a dash application
+from dash import Dash, dcc, html, Input, Output, callback, State
 
+app = dash.Dash(__name__, 
+                # paramters calling cssfile=....something.css,
+                # external_stylesheets=[ ],
+                
+                suppress_callback_exceptions=True,
+);
+
+'''
+Loading CSS Files
+For the CSS to work as expected, the stylesheets need to be added in the correct order. 
+However, Dash loads the stylesheets in a certain way. Here's the order:
+1. Files included as external stylesheets in the app constructor 
+        app=Dash(__name__, external_stylesheets=[])
+2. .css files in the /assets folder, in alphanumerical order by filename
+3. The grid's stylesheets when you import dash_ag_grid
+It's important to keep this in mind when modifying or creating your own themes 
+for dash-ag-grid. For more information, on adding .css and .js files with Dash, 
+see Adding CSS & JS.
+
+https://dash.plotly.com/dash-ag-grid/styling-themes
+'''
+
+###############################################################################
 # %% searching dir    
-def searchdir( search_dir, SHOW=False  ):
-    import os 
-    pw = os.getcwd();
-    os.chdir(search_dir);
-    files = filter(os.path.isdir, os.listdir(search_dir));
-    #files = [os.path.join(search_dir, f) for f in files] # add path to each file
-    files = [os.path.join( 0*search_dir, "", f) for f in files] ;# add path to each file
-    files.sort(key=lambda x: os.path.getmtime(x));
-    #if SHOW: print ( files );
-    if '.DS_Store' in files:
-        files.remove('.DS_Store')
-    os.chdir(pw); 
-    return files ;
 
 
 ###############################################################################
@@ -163,7 +183,7 @@ def newtest(mainpath = MAIN_PATH,
     #mainpath = MAIN_PATH; # r'/Users/dac/qlab/testing/' ; 
     import re;
     
-    nameoftests = searchdir ( mainpath );
+    nameoftests = ptt.searchdir ( mainpath );
     lasttestdir = nameoftests[-1];
     # print( lasttestdir) ;
     f  = lasttestdir.split( splitter );
@@ -198,7 +218,7 @@ def newtest__(mainpath = MAIN_PATH,
     import re;
     
 #if 1:
-    nameoftests = searchdir ( mainpath );
+    nameoftests = ptt.searchdir ( mainpath );
     lasttestdir = nameoftests[-1];
     # print( lasttestdir) ;    
     w = int( 1 + float( lasttestdir.lstrip( dirpattern ) ));
@@ -216,31 +236,42 @@ def newtest__(mainpath = MAIN_PATH,
 #    n,f = newtest( r'/Users/dac/qlab/testing/' ) ;
 
 ####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# %%
+## %%
 def check_sh():
     t = os.system("sh -c echo ' ' ");
     if t==0: shtype="bsh";
     else:    shtype="ps1";
     return shtype;
     
-def cmd_monitortemp( rec_path, exe_path, shtype="bsh", proof=1, maxlimit=10 ):
+def cmd_monitortemp(
+        rec_path, 
+        exe_path, 
+        shtype=CFG['init_shell'], # "bsh", 
+        proof=1, 
+        maxlimit=10, 
+    ):
     #exe_path=CFG['EXE_PATH']
+#    shtype="bsh";
+#    shtype="ps1";
+    shtype=CFG['init_shell'];
     exe_path = r'/Users/dac/qlab/metash/';
     if rec_path == None:
-       rec_path = str( MAIN_PATH + os.sep + searchdir( MAIN_PATH )[-1] ) ;
+       rec_path = str( MAIN_PATH + os.sep + ptt.searchdir( MAIN_PATH )[-1] ) ;
     if shtype==None:
         shtype = check_sh();
     if shtype=="bsh":
         code="monitortemp.sh"
         cmd = f'''
+ echo "running with Bash {code}" 
  sh {exe_path}/{code} -rec {rec_path} -max {maxlimit} -proof {proof} &
     '''
     else:
         code="monitortemp.ps1"
+        options=f'''-CTRLIMIT {maxlimit} -PROOFING {proof} -REC_PATH {rec_path} ''' ;
         powershell = "/usr/local/microsoft/powershell/7/pwsh" ;
         cmd = f'''
- {powershell} -Command {exe_path}/{code} ## -rec {rec_path} -max {maxlimit} -proof {proof} 
-    '''
+ {powershell} -Command {exe_path}/{code} {options} 
+ ''';
     #proof = 1 ; ## dont run adb commands 
     #maxlimit = 5; ## for proofing
     print( f'executing: \n {cmd}')
@@ -250,7 +281,7 @@ def cmd_monitortemp( rec_path, exe_path, shtype="bsh", proof=1, maxlimit=10 ):
 ## %% stop_recording
 def stop_recording(  ):
     #mainpath = MAIN_PATH; # r'/Users/dac/qlab/testing/' ; 
-    rec_path = str( MAIN_PATH + os.sep + searchdir( MAIN_PATH )[-1] ) 
+    rec_path = str( MAIN_PATH + os.sep + ptt.searchdir( MAIN_PATH )[-1] ) 
     stop_path = str( rec_path + os.sep + "STOP" );
     print( "now stopping !" )
     cmd = f'''
@@ -263,7 +294,7 @@ def stop_recording(  ):
 ####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def clear_stop_recording( shtype="bsh" ):
     #mainpath = MAIN_PATH; # r'/Users/dac/qlab/testing/' ; 
-    rec_path = str( MAIN_PATH + os.sep + searchdir( MAIN_PATH )[-1] ) 
+    rec_path = str( MAIN_PATH + os.sep + ptt.searchdir( MAIN_PATH )[-1] ) 
     stop_path = str( rec_path + os.sep + "STOP" );
     print( "Clearing STOP " );
     if shtype==None:
@@ -277,13 +308,28 @@ def clear_stop_recording( shtype="bsh" ):
     os.system( cmd );
 
 
+def get_dir( ) :
+    
+    return dcc.Dropdown(
+            id='select_dir',
+            #options=get_testdir,            
+            options = ptt.searchdir( MAIN_PATH ) ,
+            ## options = get_testdir, #ptt.searchdir( MAIN_PATH ) ,
+            value =  ptt.searchdir( MAIN_PATH )[-1],
+            persistence = True, 
+            style={'font-size': SIZE['drop'],
+                   'padding'  : 3,
+                   'textAlign': 'left',
+                   },
+        )
+
 ######################################################################
-# %%
+## %%
 ######################################################################
 # %% SETTING PATHS 
 
-if VERB[3]: ## Testing the response for searchdir ...
-    get_testdir = searchdir( MAIN_PATH );
+if VERB[3]: ## Testing the response for ptt.searchdir ...
+    get_testdir = ptt.searchdir( MAIN_PATH );
     get_lasttest = get_testdir[-1] ;
     print(f'\n Test Directories found in {MAIN_PATH} are ');
     for e in get_testdir: print( f" {e}, ", end='' );
@@ -292,9 +338,11 @@ if VERB[3]: ## Testing the response for searchdir ...
 ##--> data, inppfile = ptt.get_dfread( inppath ) <---#
 
 ######################################################################
-# %% Dashboard 
-# Create a dash application
-app = dash.Dash(__name__);
+# %% Dashboard: styples and layouts 
+# 
+
+
+
 # data =  pd.read_csv(
 #         inppfile ,
 # );
@@ -343,6 +391,8 @@ HTX = {
 
 }
 # %% Dashboard  INPUTS
+
+# SIZE['btn']
 INP = {
 
     'sel_signal': 
@@ -351,15 +401,23 @@ INP = {
             options=SIGNAL_LIST,
             value='cpu-0-0',  #DROP[0][1],
             #placeholder='cpu-0-0', #DROP[0][2],
+            style={'font-size': SIZE['drop'],
+                   'padding'  : 3,
+                   'textAlign': 'left',
+                   },
     ),
     'sel_dir': 
         dcc.Dropdown(
             id='select_dir',
             #options=get_testdir,            
-            options = searchdir( MAIN_PATH ) ,
+            options = ptt.searchdir( MAIN_PATH ) ,
             ## options = get_testdir, #searchdir( MAIN_PATH ) ,
-            value =  searchdir( MAIN_PATH )[-1],
+            value =  ptt.searchdir( MAIN_PATH )[-1],
             persistence = True, 
+            style={'font-size': SIZE['drop'],
+                   'padding'  : 3,
+                   'textAlign': 'left',
+                   },
     ),
     ## checkbox input to select last-file or all-files in testdir
     #RadioSelection = \
@@ -368,23 +426,30 @@ INP = {
            html.Button(
                 "Refresh List dir",
                 id='refresh_list',
-                n_clicks=0,                
+                n_clicks=0,  
+                style={'font-size': SIZE['btn'],
+                       'padding'  : 15,
+                       'textAlign': 'center',
+                       },
     ),     
     'sel_dir_refreshed': 
         dcc.Dropdown(
             id='select_dir_refreshed',
-            options = searchdir( MAIN_PATH ) ,
-            value =  searchdir( MAIN_PATH )[-1],
+            options = ptt.searchdir( MAIN_PATH ) ,
+            value  =  ptt.searchdir( MAIN_PATH )[-1],
+            style={'fontsize': SIZE['drop'],},
     ),
     'radio_osshell' : 
             dcc.RadioItems(
-                ['Powershell (Winddows)', 
+                [
                  'Bash Shell (Mac/Linux)',
+                 'Powershell (Winddows)' , 
                  ], 
-                'Bash Shell (Mac/Linux)', 
+                #'Bash Shell (Mac/Linux)', 
+                CFG['def_osshell'],
                 id='sel_osshell',
                 inline=True,
-                 style={'fontsize': 24,},
+                 style={'fontsize': SIZE['radio'],},
         ),
     'radio_files' : 
         dcc.RadioItems(
@@ -392,7 +457,7 @@ INP = {
             'Last File Only', 
             id='sel_files',
             inline=True,
-             style={'fontsize': 24,},
+             style={'fontsize': SIZE['radio'],},
     ),
     #3:
     'checklist_files' : 
@@ -408,7 +473,7 @@ INP = {
              "  New Test  ",
              id='make_newtestdir',
              n_clicks=0,
-             style={'font-size': 18,
+             style={'font-size': SIZE['btn'],
                     'padding' : 15,
                     'textAlign': 'left',
                     },
@@ -419,7 +484,7 @@ INP = {
              "Record Monitor",
              id='rec_monitortemp',
              n_clicks=0,
-             style={'font-size': 18,
+             style={'font-size': SIZE['btn'],
                     'padding' : 15,
                     'textAlign': 'center',
                     },
@@ -430,7 +495,7 @@ INP = {
              "Stop Monitor",
              id='stop_monitortemp',
              n_clicks=0,
-             style={'font-size': 18,
+             style={'font-size': SIZE['btn'],
                     'padding' : 15,
                     'textAlign': 'center',
                     },
@@ -441,7 +506,7 @@ INP = {
              "Clearing Stop ",
              id='clear_stop',
              n_clicks=0,
-             style={'font-size': 18,
+             style={'font-size': SIZE['btn'],
                     'padding' : 15,
                     'textAlign': 'center',
                     },
@@ -469,6 +534,10 @@ INP = {
 # %% LAYOUT SERVE
 
 def serve_layout():
+    
+    # def search_dir():
+    #     return ptt.searchdir( MAIN_PATH );
+
     # sel_dir = \
     #     dcc.Dropdown(
     #         id='select_dir',
@@ -477,13 +546,13 @@ def serve_layout():
     #         ## options = get_testdir, #searchdir( MAIN_PATH ) ,
     #         value =  searchdir( MAIN_PATH )[-1],
     #         persistence = True, 
-    # ),
+    # ), f
     MENU =\
       html.Div([
         html.Div([
 
             INP['radio_osshell'],  ## 
-             
+            dcc.Store('set_shell', storage_type='session', data='string'),
             INP['btn_newtestdir'], ##  INP[4] ,
             #html.Div( [""], 
             #    style={'width': '45px'}),
@@ -500,17 +569,36 @@ def serve_layout():
                 HTX[11] ,                
                 # dcc.Dropdown(
                 #     id='select_dir',
-                #     options = searchdir( MAIN_PATH ) ,
-                #     value =  searchdir( MAIN_PATH )[-1],
-                #     persistence = True, 
+                #     options = ptt.searchdir( MAIN_PATH ) ,
+                #     value  =  ptt.searchdir( MAIN_PATH )[-1],
+                #     persistence = False, 
                 # ),
                 
-                html.Div(id='container-dirs',
-                         className='chart-grid' ,
-                             #'children' 
-                         ),
                 INP['btn_refresh_dir'],
-            
+                dcc.Dropdown(
+                    id='list-dir',
+                    options = []    ,
+                    value  =  None  ,
+                    persistence = False, 
+                ),
+                
+                
+                dcc.Store('store-dir', 
+                          storage_type='session',
+                          data='list'
+                ),
+                dcc.Store('store-lastdir', 
+                          storage_type='session',
+                          data='string'
+                ),
+                
+#                 html.Div(id='container-dirs',
+# #                         storage_type='session',
+# #                         data='list',
+#                          className='chart-grid' ,
+#                              #'children' 
+#                 ),
+
                 # dcc.Store('this-dir'),
             
             ## select all-files or last file
@@ -521,14 +609,10 @@ def serve_layout():
 
             ],style={
               'textAlign':'left',  
-              'width':'40%',                
+              'width':'40%',
+              'height':'%40%',
               }            
         ),
-        html.Div(
-            id='container-button',
-            style={'height':'35px', 'font-size': 25},
-            
-        )
         ]
     )
     return html.Div(children=[ 
@@ -548,13 +632,21 @@ def serve_layout():
                 }
               )
             ),
-            dcc.Graph( id='fig-plot1' ), ## FIG[1] ,
             
-        html.Div(
-            id='output-container' , 
-            className='chart-grid' ,
-            style={'display': 'flex'}
-        ),    
+            dcc.Graph( id='fig-plot1' ), 
+            
+            html.Div(
+                id='container-button',
+                style={'height':'35px', 'font-size': 25},
+                
+            ),            
+            
+            html.Div(
+                id='output-container' , 
+                className='chart-grid' ,
+                style={'display': 'flex'}
+            ),    
+            
         ],style={
             'width'  : '1000px' ,
             #'height' : '1000px' ,
@@ -568,7 +660,7 @@ app.layout = serve_layout ;
 
 ######################################################################
 @app.callback( 
-  Output( 'set_shell',   'value'  ),
+  Output( 'set_shell',   'data'   ),
   Input(  'sel_osshell', 'value'  ),
 
 )
@@ -579,7 +671,9 @@ def update_shell(
         set_shell = 'ps1';
     if which_osshell=='Bash Shell (Mac/Linux)':
         set_shell = 'bsh';
-    return [ set_shell ];
+   #R =dcc.Store('set_shell', storage_type='session', data='string')        
+    R = set_shell ; 
+    return [ R ];
 
 ######################################################################
 # %% callback - buttons
@@ -593,6 +687,7 @@ def update_shell(
     Input(component_id='rec_monitortemp',  component_property='n_clicks'),
     Input(component_id='stop_monitortemp', component_property='n_clicks'),
     Input(component_id='clear_stop',       component_property='n_clicks'),
+    Input( 'set_shell',   'data'  ),
  ]
 )
  
@@ -602,10 +697,10 @@ def button_menu(
         btn_rec_monitortemp,
         btn_stop_monitor,  
         btn_clear_stop,
-        
+        set_shell,
 ):
     msg = "";
-    rec_path = str( MAIN_PATH + os.sep + searchdir( MAIN_PATH )[-1] ) ;
+    rec_path = str( MAIN_PATH + os.sep + ptt.searchdir( MAIN_PATH )[-1] ) ;
     if 'make_newtestdir' == ctx.triggered_id :
         nexttestdir, nexttestdir_full = newtest( mainpath = MAIN_PATH );
         msg = ( f' making new test dir .... {nexttestdir} ');
@@ -615,10 +710,12 @@ def button_menu(
         msg = ( f' Recording Monitortemp ');
         print ( msg );
         ## cmd_monitortemp()
-        rec_path = str( MAIN_PATH + os.sep + searchdir( MAIN_PATH )[-1] ) 
+        rec_path = str( MAIN_PATH + os.sep + ptt.searchdir( MAIN_PATH )[-1] ) 
         cmd_monitortemp( rec_path, 
                          exe_path=EXE_PATH, 
                          maxlimit=REC_LIMIT,
+                         #shtype="bsh",
+                         shtype=set_shell,
                          proof=CFG['proofing'],  ## doesn't do adb 
         );
 
@@ -626,69 +723,124 @@ def button_menu(
         msg = ( f' Stop recording Monitortemp ');
         print ( msg );
         ## cmd_monitortemp()
-        rec_path = str( MAIN_PATH + os.sep + searchdir( MAIN_PATH )[-1] ) 
+        rec_path = str( MAIN_PATH + os.sep + ptt.searchdir( MAIN_PATH )[-1] ) 
         stop_recording( ## rec_path
          );
     if 'clear_stop' == ctx.triggered_id :
         msg = ( f' Clearing Stop ');
         print ( msg );
         ## cmd_monitortemp()
-        rec_path = str( MAIN_PATH + os.sep + searchdir( MAIN_PATH )[-1] ) 
-        clear_stop_recording( ## rec_path
+        rec_path = str( MAIN_PATH + os.sep + ptt.searchdir( MAIN_PATH )[-1] ) 
+        clear_stop_recording( 
+            # shtype="bsh",
+              shtype=set_shell,
+              ## rec_path
          );
     
     # return [ html.Div(msg). nexttestdir_full  ] ;
     return [ html.Div(msg)                    ] ;
 
 # ######################################################################
+if 0:
+    pass
+# %% dropdown
+    dcc.Dropdown(
+        id='select_dir',
+        options = ptt.searchdir( MAIN_PATH ) ,
+        value  =  ptt.searchdir( MAIN_PATH )[-1],
+        persistence = True, 
+        style={'font-size': SIZE['drop'],
+               'padding'  : 3,
+               'textAlign': 'left',
+               },
+        )
+
+# ######################################################################
 # %% callback - sel_dir
+
+# # # ######################################################################
+
+# # ######################################################################
+# # %% callback - sel_dir
+# @app.callback( 
+#     Output( 'drop_sel_dir', 'children' ),
+#     # Input(component_id='select_dir', component_property='value'),
+#     Input(  'refresh_list', component_property='n_clicks'),
+# )
+
+# def make_sel_dir(   ):
+#     HTML_DROP = dcc.Dropdown(
+#         id='select_dir',
+#         options = ptt.searchdir( MAIN_PATH ) ,
+#         value =  ptt.searchdir( MAIN_PATH )[-1],
+#         persistence = True, 
+#         style={'font-size': SIZE['drop'],
+#                'padding'  : 3,
+#                'textAlign': 'left',
+#                },
+#     )
+#     return HTML_DROP  
+        
+# ######################################################################
+# %% callback - update_dir --> html_drop 
 @app.callback( 
-    Output( 'container-dirs', 'children' ),
-    # Output( 'select_dir', 'children' ),
-    ## Output( 'select_dir', 'value' ),
-    #Input(component_id='select_dir', component_property='value'),
-    Input(component_id='refresh_list', component_property='n_clicks'),
+  [ 
+    Output( 'list-dir', 'options' ),
+    Output( 'list-dir', 'value' )
+#    Output( 'last-dir', 'value' )
+  ],
+  [
+    Input( 'refresh_list', 'n_clicks'),
+  ]
 )
 
-def update_dir( btn_refresh_dir  ):
-    # if 'refresh_list' == ctx.triggered_id :
-    #     return dcc.Dropdown(
+def refresh_list_dir( btn_refresh_dir ):
+    # HTML_DROP= dcc.Dropdown(
     #         id='select_dir',
-    #         options = searchdir( MAIN_PATH ) ,
-    #         value =  searchdir( MAIN_PATH )[-1],
+    #         options =  ptt.searchdir( MAIN_PATH ) ,
+    #         value   =  ptt.searchdir( MAIN_PATH )[-1],
     #         persistence = True, 
     #     )
-    return dcc.Dropdown(
-        id='select_dir',
-        options = searchdir( MAIN_PATH ) ,
-        value =  searchdir( MAIN_PATH )[-1],
-        persistence = True, 
-    )
-    
+    # # if 'refresh_list' == ctx.triggered_id :
+    #     return HTML_DROP
+    # else: 
+    #     return no.update ;
+    return [ ptt.searchdir( MAIN_PATH ) ,
+             ptt.searchdir( MAIN_PATH )[-1] 
+           ]
+    #HTML_DROP
+
+# # ######################################################################
+
+
+# ######################################################################
+
 
 ######################################################################
 # %% callback: update_graph: sel_signal --> fig-plot
 @app.callback( 
  [ 
-    Output( 'fig-plot1', component_property='figure'),
+    Output( 'fig-plot1', 'figure'),
  #   Output( 'output-container', 'children' ),
  ],
  [
-    Input(component_id='container-dirs', component_property='children'),
-    Input(component_id='select_dir', component_property='value'),
-#    Input(component_id='sel_files',     component_property='value'),
-    Input(component_id='sel_signal', component_property='value'),
-    
+#    Input( 'container-dirs', component_property='children'),
+    # Input( 'select_dir',     component_property='value'),
+    # Input( 'store-lastdir',  'data' ),
+    Input( 'list-dir', 'value'  ) ,
+    Input( 'sel_signal', 'value') ,
+#   Input( 'sel_files',  'value') ,
  ]
 )
  
 # %% get_graph
 ######################################################################
 def update_graph( 
-        list_dir, 
+#        list_dir, 
         sel_dir,
-#        sel_files,
+#        last_dir,
         select_signal, 
+#        sel_files,
     ):  
     msg = "";
     # if btn_make_newtestdir == ctx.triggered_id :
@@ -722,10 +874,10 @@ def update_graph(
     );
     msg = f''' reading from file {inpfile} ''';
     if VERB[1]: print( msg ) ;
-    data, inppfile = ptt.get_dfread( 
+    data, _ = ptt.get_dfread( 
         inpfile 
         #inppath, SHOWFILES=True, SHOW=False
-        ) ;
+    ) ;
     
     dfcor = ptt.build_dfcor( data, APPLYSMOOTH=False )
     
@@ -747,7 +899,6 @@ def update_graph(
     green = '#16a15c' ;
     red   = '#f56642' ;
     blue  = '#008abd' ;  
-    
        
     fig1 = go.Figure();
     fig1.add_trace(go.Scatter( 
@@ -810,7 +961,11 @@ def update_graph(
     xaxis_title=" Time (sec) ",  # Set the x-axis label here
     yaxis_title=" Temperature (℃) ",  
     )
-    return [ fig1 ] ;
+    if len(inpfile) > 0:
+        return [ fig1 ] ;
+    elif len(inpfile)==0:
+#        return dadsh.no_update;
+        raise dash.exceptions.PreventUpdate 
 #    return [ fig1, html.Div(msg) ]
   
 ###############################################################################
@@ -818,7 +973,12 @@ def update_graph(
 if __name__ == '__main__':
     ## OPTS = get_argparse()
     ## CFG  = read_cfg()
-    app.run_server(port=8050, host='127.0.0.1', debug=True) ;
+    app.run_server(
+        port=8050, 
+        host='127.0.0.1', 
+        debug=True,
+        # suppress_callback_exceptions=True,        
+    ) ;
 ###############################################################################
 
 
